@@ -1,25 +1,26 @@
-# VISUS Native (Android)
+ï»¿# VISUS Native (Android)
 
 Minimal szkielet pod przepisanie webowego VISUS na Androida (Kotlin, Compose, OpenGL ES 3.0).
 
-## Wymagania œrodowiska
+## Wymagania Å›rodowiska
 - JDK 17+
 - Android Studio (Koala/Ladybug) z SDK Platform-Tools
-- NDK + CMake (jeœli bêdzie Oboe / C++)
+- NDK + CMake (jeÅ›li bÄ™dzie Oboe / C++)
 - Min SDK 26, target 34
 
 ## Struktura
-- `app/build.gradle.kts` — Compose, CameraX, AudioRecord (JTransforms), OpenGL ES.
-- `MainActivity` + `VisusApp` — start Compose.
-- `VisusScreen` — podgl¹d GLSurfaceView + prosty panel sterowania.
-- `engine/VisusRenderer` — szkielet renderer GL, miejsce na pipeline shaderów.
-- `engine/ShaderRepository` — placeholder na port SHADER_LIST z weba.
-- `audio/AudioAnalyzer` — szkielet pod AudioRecord + FFT.
-- `recording/VisusRecorder` — placeholder pod MediaCodec/Muxer (Surface input).
+- `app/build.gradle.kts` â€” Compose, CameraX, AudioRecord (JTransforms), OpenGL ES.
+- `MainActivity` + `VisusApp` â€” start Compose.
+- `VisusScreen` â€” podglÄ…d GLSurfaceView + panel sterowania (aspect, record toggle) + start CameraX/audio analyzer.
+- `engine/VisusRenderer` â€” szkielet renderer GL + SurfaceTexture/OES dla CameraX.
+- `engine/CameraController` â€” CameraX -> SurfaceTexture (OES).
+- `engine/ShaderRepository` â€” placeholder na port SHADER_LIST z weba.
+- `audio/AudioAnalyzer` â€” AudioRecord + FFT (JTransforms) z podziaÅ‚em na bass/mid/high.
+- `recording/VisusRecorder` â€” szkic MediaCodec/Muxer (Surface input) bez podwÃ³jnego renderu jeszcze.
 
-## Nastêpne kroki
-1) Dodaæ wrapper Gradle (`gradle wrapper`) lub otworzyæ w Android Studio i zsynchronizowaæ.
-2) Podpi¹æ CameraX -> SurfaceTexture -> OES sampler w rendererze.
-3) Przenieœæ shadery z web (`constants.ts`) do assets/res/raw, dopasowaæ nag³ówki GLSL ES.
-4) Wpi¹æ AudioRecord + FFT (JTransforms) i mapowaæ bass/mid/high na uniformy.
-5) Dodaæ MediaCodec Surface do podwójnego renderu (ekran + nagrywanie).
+## NastÄ™pne kroki
+1) UruchomiÄ‡ gradlew (wrapper dodany) i zbudowaÄ‡ w Android Studio/CLI.
+2) UzupeÅ‚niÄ‡ renderer o programy shaderowe i rysowanie OES -> main shader -> additive stack.
+3) PrzenieÅ›Ä‡ shadery z web (`constants.ts`) do assets/res/raw, dopasowaÄ‡ nagÅ‚Ã³wki GLSL ES.
+4) ZmapowaÄ‡ wyniki FFT na uniformy shaderÃ³w i do UI.
+5) DodaÄ‡ MediaCodec Surface do podwÃ³jnego renderu (ekran + nagrywanie) przez osobny EGLSurface.

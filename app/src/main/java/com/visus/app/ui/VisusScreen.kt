@@ -27,6 +27,9 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,14 +38,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
+import com.visus.app.audio.AudioAnalyzer
+import com.visus.app.engine.CameraController
 import com.visus.app.engine.VisusRenderer
 import com.visus.app.model.VisualizerState
 import com.visus.app.ui.components.GlPreview
+import kotlinx.coroutines.delay
 
 @Composable
 fun VisusScreen() {
     val renderer = remember { VisusRenderer() }
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val cameraController = remember { CameraController(context) }
+    val audioAnalyzer = remember { AudioAnalyzer() }
     var uiState by remember {
         mutableStateOf(
             VisualizerState(
@@ -54,6 +66,33 @@ fun VisusScreen() {
                 aspectRatio = 16f / 9f
             )
         )
+    }
+    val bandLevels by audioAnalyzer.bands.collectAsState()
+
+    LaunchedEffect(bandLevels) {
+        uiState = uiState.copy(
+            bass = bandLevels.first,
+            mid = bandLevels.second,
+            high = bandLevels.third
+        )
+    }
+
+    LaunchedEffect(renderer, lifecycleOwner) {
+        while (renderer.getCameraSurfaceTexture() == null) {
+            delay(50)
+        }
+        renderer.getCameraSurfaceTexture()?.let { surfaceTexture ->
+            cameraController.startCamera(lifecycleOwner, surfaceTexture)
+        }
+    }
+
+    DisposableEffect(Unit) {
+        audioAnalyzer.start()
+        onDispose {
+            audioAnalyzer.stop()
+            cameraController.stopCamera()
+            cameraController.shutdown()
+        }
     }
 
     val gradient = Brush.verticalGradient(
