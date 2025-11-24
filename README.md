@@ -24,3 +24,9 @@ Minimal szkielet pod przepisanie webowego VISUS na Androida (Kotlin, Compose, Op
 3) Przenieść shadery z web (`constants.ts`) do assets/res/raw, dopasować nagłówki GLSL ES.
 4) Zmapować wyniki FFT na uniformy shaderów i do UI.
 5) Dodać MediaCodec Surface do podwójnego renderu (ekran + nagrywanie) przez osobny EGLSurface.
+
+## Build (CLI)
+```
+./gradlew assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```

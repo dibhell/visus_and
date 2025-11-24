@@ -50,9 +50,9 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun VisusScreen() {
-    val renderer = remember { VisusRenderer() }
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val renderer = remember { VisusRenderer(context) }
     val cameraController = remember { CameraController(context) }
     val audioAnalyzer = remember { AudioAnalyzer() }
     var uiState by remember {
@@ -70,6 +70,7 @@ fun VisusScreen() {
     val bandLevels by audioAnalyzer.bands.collectAsState()
 
     LaunchedEffect(bandLevels) {
+        renderer.updateBands(bandLevels.first, bandLevels.second, bandLevels.third)
         uiState = uiState.copy(
             bass = bandLevels.first,
             mid = bandLevels.second,
