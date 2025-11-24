@@ -16,14 +16,16 @@ Minimal szkielet pod przepisanie webowego VISUS na Androida (Kotlin, Compose, Op
 - `engine/CameraController` — CameraX -> SurfaceTexture (OES).
 - `engine/ShaderRepository` — placeholder na port SHADER_LIST z weba.
 - `audio/AudioAnalyzer` — AudioRecord + FFT (JTransforms) z podziałem na bass/mid/high.
-- `recording/VisusRecorder` — szkic MediaCodec/Muxer (Surface input) bez podwójnego renderu jeszcze.
+- `recording/VisusRecorder` — szkic MediaCodec/Muxer (Surface input) z podpięciem drugiej powierzchni do renderera.
+- `engine/EglRecorderSurface` — EGL14 dla drugiego celu renderu (MediaCodec Surface).
+- Ikona: adaptive icon z VISUS `icon.png`.
 
 ## Następne kroki
 1) Uruchomić gradlew (wrapper dodany) i zbudować w Android Studio/CLI.
-2) Uzupełnić renderer o programy shaderowe i rysowanie OES -> main shader -> additive stack.
+2) Uzupełnić renderer o programy shaderowe i rysowanie OES -> main shader -> additive stack (obecnie prosty efekt RGB/glitch).
 3) Przenieść shadery z web (`constants.ts`) do assets/res/raw, dopasować nagłówki GLSL ES.
 4) Zmapować wyniki FFT na uniformy shaderów i do UI.
-5) Dodać MediaCodec Surface do podwójnego renderu (ekran + nagrywanie) przez osobny EGLSurface.
+5) Dokończyć MediaCodec: render sceny na drugi EGLSurface (API przygotowane) i finalizacja pliku MP4.
 
 ## Build (CLI)
 ```

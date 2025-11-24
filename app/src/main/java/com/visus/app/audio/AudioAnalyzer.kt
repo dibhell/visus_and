@@ -60,7 +60,7 @@ class AudioAnalyzer {
         val fftBuffer = DoubleArray(fftSize * 2)
         val fft = DoubleFFT_1D(fftSize.toLong())
 
-        while (isActive) {
+        while (scope.isActive) {
             val read = ar.read(shortBuffer, 0, shortBuffer.size)
             if (read <= 0) continue
             // Copy to double buffer with zeroed imaginary parts.

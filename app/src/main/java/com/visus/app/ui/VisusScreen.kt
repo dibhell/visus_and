@@ -46,6 +46,7 @@ import com.visus.app.engine.CameraController
 import com.visus.app.engine.VisusRenderer
 import com.visus.app.model.VisualizerState
 import com.visus.app.ui.components.GlPreview
+import com.visus.app.recording.VisusRecorder
 import kotlinx.coroutines.delay
 
 @Composable
@@ -55,6 +56,7 @@ fun VisusScreen() {
     val renderer = remember { VisusRenderer(context) }
     val cameraController = remember { CameraController(context) }
     val audioAnalyzer = remember { AudioAnalyzer() }
+    val recorder = remember { VisusRecorder() }
     var uiState by remember {
         mutableStateOf(
             VisualizerState(
@@ -93,7 +95,26 @@ fun VisusScreen() {
             audioAnalyzer.stop()
             cameraController.stopCamera()
             cameraController.shutdown()
+            renderer.detachRecordingSurface()
+            recorder.stop()
         }
+    }
+
+    val startRecording: () -> Unit = {
+        val (w, h) = renderer.getViewportSize().let { size ->
+            if (size.first <= 0 || size.second <= 0) 1080 to 1920 else size
+        }
+        val surface = recorder.start(context, w, h)
+        if (surface != null) {
+            renderer.attachRecordingSurface(surface, w, h)
+            uiState = uiState.copy(isRecording = true)
+        }
+    }
+
+    val stopRecording: () -> Unit = {
+        renderer.detachRecordingSurface()
+        recorder.stop()
+        uiState = uiState.copy(isRecording = false)
     }
 
     val gradient = Brush.verticalGradient(
@@ -132,7 +153,7 @@ fun VisusScreen() {
             ControlPanel(
                 uiState = uiState,
                 onToggleRecording = {
-                    uiState = uiState.copy(isRecording = !uiState.isRecording)
+                    if (recorder.isRecording()) stopRecording() else startRecording()
                 },
                 onAspectChanged = { ratio -> uiState = uiState.copy(aspectRatio = ratio) }
             )
@@ -185,6 +206,11 @@ private fun StatusChip(text: String, tint: Color) {
 @Composable
 private fun SpectrumBars(state: VisualizerState) {
     val bars = listOf(state.bass, state.mid, state.high)
+    val barColors = listOf(
+        MaterialTheme.colorScheme.tertiary,
+        MaterialTheme.colorScheme.secondary,
+        MaterialTheme.colorScheme.primary
+    )
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -200,11 +226,7 @@ private fun SpectrumBars(state: VisualizerState) {
                 val height = value.coerceIn(0f, 1f) * maxHeight
                 val x = barWidth + index * barWidth * 2
                 drawRoundRect(
-                    color = when (index) {
-                        0 -> MaterialTheme.colorScheme.tertiary
-                        1 -> MaterialTheme.colorScheme.secondary
-                        else -> MaterialTheme.colorScheme.primary
-                    },
+                    color = barColors.getOrElse(index) { barColors.last() },
                     topLeft = androidx.compose.ui.geometry.Offset(x, maxHeight - height),
                     size = androidx.compose.ui.geometry.Size(barWidth, height),
                     cornerRadius = androidx.compose.ui.geometry.CornerRadius(12f, 12f)

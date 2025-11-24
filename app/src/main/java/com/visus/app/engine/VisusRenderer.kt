@@ -2,6 +2,7 @@ package com.visus.app.engine
 
 import android.content.Context
 import android.graphics.SurfaceTexture
+import android.opengl.EGL14
 import android.opengl.GLES11Ext
 import android.opengl.GLES30
 import android.opengl.GLSurfaceView
@@ -9,6 +10,9 @@ import android.os.SystemClock
 import com.visus.app.R
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.nio.FloatBuffer
 
 class VisusRenderer(private val context: Context) : GLSurfaceView.Renderer {
     private var cameraSurfaceTexture: SurfaceTexture? = null
@@ -17,14 +21,21 @@ class VisusRenderer(private val context: Context) : GLSurfaceView.Renderer {
     private var viewportHeight: Int = 0
     private var programOes: ShaderProgram? = null
     private var programEffect: ShaderProgram? = null
-    private val quadVertices = floatArrayOf(
-        -1f, -1f,
-        1f, -1f,
-        -1f, 1f,
-        1f, 1f
-    )
+    private val quadVertices: FloatBuffer = ByteBuffer.allocateDirect(8 * 4)
+        .order(ByteOrder.nativeOrder())
+        .asFloatBuffer()
+        .put(
+            floatArrayOf(
+                -1f, -1f,
+                1f, -1f,
+                -1f, 1f,
+                1f, 1f
+            )
+        ).apply { position(0) }
     private var bandValues = floatArrayOf(0f, 0f, 0f)
     private var startTimeMs = SystemClock.elapsedRealtime()
+    private var recorderSurface: EglRecorderSurface? = null
+    private var recorderSize: Pair<Int, Int>? = null
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
         GLES30.glClearColor(0f, 0f, 0f, 1f)
@@ -34,8 +45,6 @@ class VisusRenderer(private val context: Context) : GLSurfaceView.Renderer {
                 // Frames will be consumed on the GL thread in onDrawFrame.
             }
         }
-    }
-
         val vertexSrc = context.resources.openRawResource(R.raw.shader_vertex).bufferedReader().use { it.readText() }
         val fragOes = context.resources.openRawResource(R.raw.shader_oes).bufferedReader().use { it.readText() }
         val fragBase = context.resources.openRawResource(R.raw.shader_base).bufferedReader().use { it.readText() }
@@ -53,22 +62,28 @@ class VisusRenderer(private val context: Context) : GLSurfaceView.Renderer {
     override fun onDrawFrame(gl: GL10?) {
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT)
         cameraSurfaceTexture?.updateTexImage()
-        drawOes()
+        drawScene(viewportWidth, viewportHeight)
+
+        recorderSurface?.let { recorder ->
+            val (w, h) = recorderSize ?: (viewportWidth to viewportHeight)
+            recorder.draw {
+                drawScene(w, h)
+            }
+        }
     }
 
-    private fun drawOes() {
+    private fun drawScene(width: Int, height: Int) {
         val program = programOes ?: return
         program.use()
         val posLoc = program.getAttrib("aPosition")
         GLES30.glEnableVertexAttribArray(posLoc)
-        val vb = java.nio.ByteBuffer.allocateDirect(quadVertices.size * 4).order(java.nio.ByteOrder.nativeOrder()).asFloatBuffer()
-        vb.put(quadVertices).position(0)
-        GLES30.glVertexAttribPointer(posLoc, 2, GLES30.GL_FLOAT, false, 0, vb)
+        GLES30.glVertexAttribPointer(posLoc, 2, GLES30.GL_FLOAT, false, 0, quadVertices)
 
         val time = (SystemClock.elapsedRealtime() - startTimeMs) / 1000f
         GLES30.glUniform1f(program.getUniform("uTime"), time)
-        GLES30.glUniform2f(program.getUniform("uResolution"), viewportWidth.toFloat(), viewportHeight.toFloat())
+        GLES30.glUniform2f(program.getUniform("uResolution"), width.toFloat(), height.toFloat())
         GLES30.glUniform3f(program.getUniform("uBands"), bandValues[0], bandValues[1], bandValues[2])
+        GLES30.glViewport(0, 0, width, height)
 
         GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
         GLES30.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, oesTextureId)
@@ -86,6 +101,19 @@ class VisusRenderer(private val context: Context) : GLSurfaceView.Renderer {
         bandValues[0] = bass
         bandValues[1] = mid
         bandValues[2] = high
+    }
+
+    fun attachRecordingSurface(surface: android.view.Surface, width: Int, height: Int) {
+        val currentContext = EGL14.eglGetCurrentContext()
+        recorderSurface?.release()
+        recorderSurface = EglRecorderSurface(surface, currentContext)
+        recorderSize = width to height
+    }
+
+    fun detachRecordingSurface() {
+        recorderSurface?.release()
+        recorderSurface = null
+        recorderSize = null
     }
 
     private fun createOesTexture(): Int {
